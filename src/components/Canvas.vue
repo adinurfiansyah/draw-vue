@@ -2,17 +2,11 @@
 	<div class="canvas">
 		<canvas ref="canvas" id="myCanvas"></canvas>
 	</div>
-	<Bar />
 </template>
 
 <script>
-import Bar from './Bar.vue';
 export default {
-	inject: ['canvasStore'],
 	name: 'Canvas',
-	components: {
-		Bar,
-	},
 	data() {
 		return {
 			isIdle: true,
@@ -33,19 +27,14 @@ export default {
             this.position.x = p.pageX;
             this.position.y = p.pageY;
             if (!this.isIdle) {
-                const state = this.canvasStore.state;
+                const state = this.$bus.state;
                 this.ctx.beginPath();
-                this.ctx.lineWidth = state.width;
+                this.ctx.lineWidth = state.activeWidth;
                 if (state.tool === 'pencil') {
-                    // console.log(state)
                     this.ctx.strokeStyle = state.activeColor;
-                   
-                    
                     this.ctx.globalCompositeOperation="source-over";
                     this.ctx.moveTo(this.lastPosition.x, this.lastPosition.y);
                     this.ctx.lineTo(this.position.x, this.position.y);
-                    //  this.ctx.arc(this.lastPosition.x, this.lastPosition.y ,8,0,Math.PI*2,false);
-                    //  this.ctx.fill();
                     this.ctx.stroke();
                     
                 } else if (state.tool === 'eraser') {
@@ -58,15 +47,13 @@ export default {
             }
 		},
 		handleMouseClick(p) {
-                const state = this.canvasStore.state;
+                const state = this.$bus.state;
                 this.position.x = p.pageX;
                 this.position.y = p.pageY;
                 this.lastPosition.x = this.position.x;
                 this.lastPosition.y = this.position.y;
                 this.isIdle = false;
                 if (state.tool === 'clr') {
-                    console.log('fill')
-                   
                     this.ctx.fillStyle = state.activeColor;
                     this.ctx.fill();
                 }
@@ -77,20 +64,25 @@ export default {
 			this.isIdle = true;
 
 		},
-
+        addMouseHandler() {
+            this.canvas.addEventListener('mousemove', this.handlerMouseMove, false);
+            this.canvas.addEventListener('mouseup', this.handleMouseLeft, false);
+            this.canvas.addEventListener('mouseout', this.handleMouseLeft, false);
+            this.canvas.addEventListener('mousedown', this.handleMouseClick, false);
+        },
 		initCanvas() {
+            const store = this.$bus;
 			this.canvas = this.$refs?.canvas;
-			this.canvasStore.setCanvas(this.canvas);
+			store.setStore('canvas', this.canvas);
 			this.ctx = this.canvas.getContext('2d');
 			let w = this.canvas.getBoundingClientRect().width;
 			let h = this.canvas.getBoundingClientRect().height;
 			if (this.canvas) {
 				this.canvas.width = w;
 				this.canvas.height = h;
-				this.canvas.addEventListener('mousemove', this.handlerMouseMove, false);
-				this.canvas.addEventListener('mouseup', this.handleMouseLeft, false);
-                this.canvas.addEventListener('mouseout', this.handleMouseLeft, false);
-				this.canvas.addEventListener('mousedown', this.handleMouseClick, false);
+                this.ctx.fillStyle = "#FFFFFF";
+                this.ctx.fillRect(0,0, w, h);
+				this.addMouseHandler();
 			}
 		},
 	},

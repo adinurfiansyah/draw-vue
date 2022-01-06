@@ -1,38 +1,28 @@
 <template>
 	<div class="bar">
 		<div class="content">
-			<button v-on:click="handleClick('pencil', $event)" class="btn btn-pencil" :class="canvasStore.state.tool === 'pencil' ? 'active' : ''">
-				<i class="fas fa-pencil-alt"></i>
-			</button>
-			<button v-on:click="handleClick('eraser', $event)" class="btn btn-eraser" :class="canvasStore.state.tool === 'eraser' ? 'active' : ''">
-				<i class="fas fa-eraser"></i>
-			</button>
-			<button v-on:click="handleClick('fill', $event)" class="btn btn-color" :class="canvasStore.state.tool === 'fill' ? 'active' : ''">
-				<i class="fas fa-fill"></i>
-			</button>
-			<button v-on:click="handleClick('clr', $event)" class="btn btn-clr" :class="canvasStore.state.tool === 'clr' ? 'active' : ''">
-				<!-- <i class="fas fa-fill"></i> -->
-				<div :style="{ borderWidth: canvasStore.state.width + 'px', height: canvasStore.state.width + 'px' }" />
-			</button>
-			<button v-on:click="handleClick('clear', $event)" class="btn btn-clear" :class="canvasStore.state.tool === 'clear' ? 'active' : ''">
-				<i class="fas fa-eraser"></i>
+			<button
+				class="btn"
+				v-for="toolkit in toolkits"
+				v-bind:key="toolkit.id"
+				v-on:click="handleClick(toolkit.id, $event)"
+				:class="`btn-${toolkit.id} ${this.$bus.state.tool === toolkit.id ? 'active' : ''}`"
+			>
+				<i v-if="toolkit.ico !== 'custom1'" :style="toolkit.id === 'fill' ? { color: this.$bus.state.activeColor } : {}" class="fas" :class="toolkit.ico"></i>
+				<div v-else :style="{ borderWidth: this.$bus.state.activeWidth + 'px', height: this.$bus.state.activeWidth + 'px' }" />
 			</button>
 		</div>
 	</div>
-	<color-palette v-bind:x="lastPosition.x" v-bind:y="lastPosition.y" v-if="canvasStore.state.tool === 'fill'" />
-	<width-palette v-bind:x="lastPosition.x" v-bind:y="lastPosition.y" v-if="canvasStore.state.tool === 'clr'" />
+	<tooltip v-bind:x="lastPosition.x" v-bind:y="lastPosition.y" v-if="this.isOpen" />
 </template>
 
 <script>
-import ColorPalette from './ColorPalette.vue';
-import WidthPalette from './WidthPalette.vue';
+import Tooltip from './Tooltip.vue';
 export default {
-	inject: ['canvasStore'],
 	name: 'Bar',
 	props: ['x', 'y'],
 	components: {
-		ColorPalette,
-		WidthPalette,
+		Tooltip,
 	},
 	data() {
 		return {
@@ -40,41 +30,87 @@ export default {
 				x: 0,
 				y: 0,
 			},
+			toolkits: [
+				{
+					id: 'pencil',
+					ico: 'fa-pencil-alt',
+				},
+				{
+					id: 'clear',
+					ico: 'fa-file',
+				},
+				{
+					id: 'eraser',
+					ico: 'fa-eraser',
+				},
+				{
+					id: 'fill',
+					ico: 'fa-fill',
+				},
+				{
+					id: 'width',
+					ico: 'custom1',
+				},
+				{
+					id: 'download',
+					ico: 'fa-file-download',
+				},
+			],
 		};
 	},
 	methods: {
+		handleDownload(images) {
+			const anchor = document.createElement('a');
+			anchor.href = images;
+			anchor.download = 'drawing.png';
+			document.body.appendChild(anchor);
+			anchor.click();
+			document.body.removeChild(anchor);
+		},
 		handleClick(type, event) {
-			// console.log(event)
+			const store = this.$bus;
+			const canvas = store.state.canvas;
+			const ctx = canvas.getContext('2d');
 			this.lastPosition.x = event.pageX;
 			this.lastPosition.y = event.pageY;
-			
-			if (type === 'clear') {
-				const canvas = this.canvasStore.state.canvas;
-				const ctx = canvas.getContext('2d');
-				ctx.clearRect(0, 0, canvas.width, canvas.height);
-			} else {
-                this.canvasStore.setTool(type);
-            }
-			// console.log(canvas, ctx);
-			// window.localStorage.clear();
-			// window.localStorage.setItem(type, true);
+			switch (type) {
+				case 'clear': {
+					ctx.clearRect(0, 0, canvas.width, canvas.height);
+					break;
+				}
+				case 'download': {
+					const images = canvas.toDataURL('image/jpeg');
+					store.setStore('imageResult', images);
+					this.handleDownload(images);
+					break;
+				}
+				default: {
+					store.setStore('tool', type);
+				}
+			}
+		},
+	},
+	computed: {
+		isOpen() {
+			const defaultTool = ['fill', 'width'];
+			const store = this.$bus;
+			const tool = store.state.tool;
+			return defaultTool.includes(tool);
 		},
 	},
 };
 </script>
 
 <style lang="scss" scoped>
-$clrPrimary: #4358d8;
 .bar {
 	position: fixed;
-	right: 2.5%;
+	right: 0;
 	top: 50%;
 	transform: translateY(-50%);
-	background: $clrPrimary;
-	width: 10vmax;
-	height: 80vmin;
-	border-radius: 2.5vmax;
-	padding: 2vmax 1.5vmax;
+	background: var(--primary);
+	width: 15vmax;
+	height: 100vmin;
+	padding: 2vmax 3vmax;
 	.content {
 		width: 100%;
 		height: 100%;
@@ -85,12 +121,13 @@ $clrPrimary: #4358d8;
 			background: transparent;
 			border: none;
 			outline: none;
-			width: calc(100% / 2.9);
-			height: 5vmin;
+			width: 7.5vmin;
+			height: 7.5vmin;
 			margin: 0 auto 15px auto;
+			border: 1px solid var(--white);
+			cursor: pointer;
 			&:hover,
 			&.active {
-				filter: brightness(1.2);
 				background: white;
 				i {
 					color: black;
@@ -103,7 +140,7 @@ $clrPrimary: #4358d8;
 				color: white;
 				font-size: 1.5vmax;
 			}
-			&-clr {
+			&-width {
 				> div {
 					width: 100%;
 					border: 1px solid white;
